@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GLA ARG SYSTEM</title>
+
+<style>
+body{
+margin:0;
+font-family:monospace;
+background:black;
+color:#e6e6e6;
+overflow-x:hidden;
+}
+
+header{
+background:#b3001b;
+padding:10px;
+text-align:center;
+}
+
+.container{
+max-width:600px;
+margin:20px auto;
+padding:15px;
+border:1px solid red;
+background:#0a0a0a;
+}
+
+.terminal{
+background:black;
+border:1px solid red;
+height:200px;
+overflow:auto;
+padding:10px;
+}
+
+input,button{
+padding:10px;
+margin:5px;
+}
+button{background:#b3001b;color:white;border:none;}
+
+.map{
+width:200px;height:100px;
+background:#b3001b;
+margin:10px auto;
+display:flex;
+justify-content:center;
+align-items:center;
+cursor:pointer;
+}
+
+#loadingScreen,#entityWarning{
+display:none;
+position:fixed;
+top:0;left:0;
+width:100%;height:100%;
+justify-content:center;
+align-items:center;
+z-index:999;
+}
+
+#loadingScreen{background:black;color:red;}
+#entityWarning{
+background:url("entity_bg.png") center/cover no-repeat;
+color:red;
+font-size:30px;
+}
+
+#notif{
+position:fixed;
+bottom:10px;
+right:10px;
+background:#111;
+border:1px solid red;
+padding:10px;
+display:none;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<img src="GLA_logo.png" width="60">
+<h2>GLA NETWORK</h2>
+</header>
+
+<div id="mainPage" class="container">
+<h2>GLA ACCESS</h2>
+<button onclick="enterSystem()">Connect</button>
+</div>
+
+<div id="loadingScreen"><h2>Connecting to GLA network...</h2></div>
+
+<div id="loginBox" class="container" style="display:none;">
+<input id="username" placeholder="Username"><br>
+<input id="phone" placeholder="Phone"><br>
+<button onclick="login()">Login</button>
+<p id="error"></p>
+</div>
+
+<div id="dashboard" class="container" style="display:none;">
+<h3 id="welcome"></h3>
+
+<div class="map" onclick="showMap()">Nusia War Zone</div>
+<div class="map" onclick="detectEnemy()">Scan Enemy</div>
+<div id="hiddenRegion" class="map" style="display:none;">???</div>
+
+<p id="mapInfo"></p>
+
+<div id="terminal" class="terminal"></div>
+<input id="cmd" placeholder="command...">
+
+<button onclick="logout()">Logout</button>
+</div>
+
+<div id="entityWarning"></div>
+<div id="notif"></div>
+
+<script>
+let coreUnlocked=false;
+let puzzleSolved=false;
+let entityLevel=0;
+
+/* FILES */
+const files={
+"log1":"Day 1: We entered Nusia.",
+"log2":"Day 3: Something is watching us... binary might help.",
+"log3":"Day 5: DO NOT OPEN THE CORE."
+};
+
+/* ENTER */
+function enterSystem(){
+mainPage.style.display="none";
+loadingScreen.style.display="flex";
+setTimeout(()=>{
+loadingScreen.style.display="none";
+loginBox.style.display="block";
+},2000);
+}
+
+/* LOGIN */
+function login(){
+if(username.value && phone.value){
+loginBox.style.display="none";
+dashboard.style.display="block";
+welcome.innerText="Soldier "+username.value;
+notify("HQ: Stay alert.");
+}else error.innerText="Invalid";
+}
+
+/* LOGOUT */
+function logout(){location.reload();}
+
+/* TYPE EFFECT */
+function typeLine(text,speed=20){
+return new Promise(res=>{
+let i=0;
+let line=document.createElement("div");
+terminal.appendChild(line);
+
+function t(){
+if(i<text.length){
+line.innerHTML+=text[i++];
+setTimeout(t,speed);
+}else res();
+}
+t();
+
+/* scroll + limit */
+terminal.scrollTop=terminal.scrollHeight;
+if(terminal.children.length>120){
+terminal.removeChild(terminal.firstChild);
+}
+});
+}
+
+/* TERMINAL */
+cmd.addEventListener("keypress",async function(e){
+if(e.key==="Enter"){
+let text=cmd.value;
+await typeLine("> "+text);
+
+/* HELP */
+if(text==="help"){
+await typeLine("open youtube/google/reddit/pantip/fandom");
+await typeLine("files / open log1");
+await typeLine("puzzle / unlock / open core");
+}
+
+/* APPS */
+if(text.startsWith("open")){
+let app=text.split(" ")[1];
+await loadProgram(app);
+}
+
+/* FILES */
+if(text==="files"){
+await typeLine("FILES:");
+await typeLine("- log1");
+await typeLine("- log2");
+await typeLine("- log3");
+}
+if(files[text]){
+await typeLine(files[text]);
+}
+
+/* PUZZLE */
+if(text==="puzzle"){
+await typeLine("01000111 01001100 01000001");
+}
+
+/* SOLVE */
+if(text==="GLA"){
+puzzleSolved=true;
+await typeLine("Correct");
+notify("HQ: Password = GLA-2316");
+}
+
+/* UNLOCK */
+if(text.startsWith("unlock")){
+let pass=text.split(" ")[1];
+if(pass==="GLA-2316"){
+coreUnlocked=true;
+await typeLine("CORE UNLOCKED");
+}else await typeLine("ACCESS DENIED");
+}
+
+/* CORE */
+if(text==="open core"){
+if(!coreUnlocked){
+await typeLine("CORE LOCKED");
+}else{
+triggerEntity(true);
+}
+}
+
+/* ENEMY */
+if(text==="scan enemy"){
+detectEnemy();
+}
+
+/* ENTITY PROGRESSION */
+if(Math.random()<0.15+(entityLevel*0.05)){
+entityAttack();
+}
+
+/* CORRUPTION */
+if(Math.random()<0.2){
+corruptSystem();
+}
+
+cmd.value="";
+}
+});
+
+/* PROGRAM LOADER */
+async function loadProgram(app){
+for(let i=0;i<=100;i+=20){
+await typeLine("["+"█".repeat(Math.floor(i/10))+"░".repeat(10-Math.floor(i/10))+"] "+i+"%");
+}
+
+/* APPS */
+if(app==="youtube"){window.open("https://youtube.com");}
+else if(app==="google"){window.open("https://google.com");}
+else if(app==="reddit"){window.open("https://reddit.com");}
+else if(app==="pantip"){window.open("https://pantip.com");}
+else if(app==="fandom"){window.open("https://fandom.com");}
+else await typeLine("Program not found");
+}
+
+/* ENEMY */
+async function detectEnemy(){
+await typeLine("Scanning...");
+await typeLine("Enemy: NUSIAN FORCES");
+notify("HQ: Contact imminent");
+}
+
+/* ENTITY ATTACK */
+async function entityAttack(){
+entityLevel++;
+await typeLine("...");
+if(entityLevel>2){
+await typeLine("I SEE YOU");
+notify("UNKNOWN: stop");
+}
+if(entityLevel>4){
+await typeLine("...you shouldn't be here...");
+setTimeout(()=>{
+document.body.innerHTML="<h1 style='color:red;text-align:center;margin-top:40%'>YOU BELONG TO US</h1>";
+},1500);
+}
+}
+
+/* ENTITY FULL */
+async function triggerEntity(full=false){
+entityWarning.style.display="flex";
+entityWarning.innerHTML="<h1>⚠ ENTITY DETECTED ⚠</h1>";
+
+await typeLine("SIGNAL BREACH...");
+hiddenRegion.style.display="flex";
+
+if(full){
+if(puzzleSolved){
+setTimeout(()=>{
+document.body.innerHTML="<h1 style='color:lime;text-align:center;margin-top:40%'>ESCAPE SUCCESSFUL</h1>";
+},2000);
+}else{
+setTimeout(()=>{
+document.body.innerHTML="<h1 style='color:red;text-align:center;margin-top:40%'>SYSTEM LOST</h1>";
+},2000);
+}
+}
+
+let g=setInterval(()=>{
+document.body.style.transform=
+"translate("+ (Math.random()*10-5)+"px,"+(Math.random()*10-5)+"px)";
+},80);
+
+setTimeout(()=>{
+clearInterval(g);
+document.body.style.transform="none";
+entityWarning.style.display="none";
+},2500);
+}
+
+/* CORRUPTION */
+function corruptSystem(){
+terminal.innerHTML+="<div style='color:red'>FILE CORRUPTED...</div>";
+}
+
+/* NOTIFY */
+function notify(msg){
+notif.innerText=msg;
+notif.style.display="block";
+setTimeout(()=>notif.style.display="none",3000);
+}
+
+/* HQ RANDOM */
+setInterval(()=>{
+if(Math.random()<0.3){
+notify("HQ: Maintain position.");
+}
+},15000);
+
+</script>
+
+</body>
+</html>
